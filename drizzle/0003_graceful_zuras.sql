@@ -1,0 +1,1 @@
+ALTER TABLE `users` MODIFY COLUMN `last_login_at` timestamp DEFAULT (now());
