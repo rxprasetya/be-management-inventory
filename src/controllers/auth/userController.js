@@ -18,7 +18,7 @@ export const signIn = async (req, res) => {
 
         const { username, password } = validation.data
 
-        const { id: userID, username: userName, password: userPassword, role: userRole } = await db
+        const result = await db
             .select({
                 id: users.id,
                 username: users.username,
@@ -27,9 +27,12 @@ export const signIn = async (req, res) => {
             })
             .from(users)
             .where(eq(users.username, username))
-            .then(res => res[0])
 
-        if (!userName) return msgError(res, 400, "Invalid username or password")
+        const user = result[0]
+
+        if (!user) return msgError(res, 400, "Invalid username or password")
+
+        const { id: userID, password: userPassword, role: userRole } = user
 
         const valid = await comparePassword(password, userPassword)
 
@@ -46,6 +49,6 @@ export const signIn = async (req, res) => {
             token
         })
     } catch (error) {
-        return msgError(res, 500, `Internal Server Error`)
+        return msgError(res, 500, `Internal Server Error`, error)
     }
 }
