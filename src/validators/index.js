@@ -55,8 +55,7 @@ export const warehouseValidator = z.object({
     location: z
         .string()
         .max(255, "Location must be at most 255 characters")
-        .nullable()
-        .optional(),
+        .nonempty("Location is required"),
 })
 
 export const stockLevelValidator = z.object({
