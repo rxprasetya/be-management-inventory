@@ -40,14 +40,39 @@ export const signIn = async (req, res) => {
 
         await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, userID))
 
-        const token = generateToken({ id: userID, role: userRole })
+        const token = generateToken({ id: userID, username, role: userRole })
 
-        return msgSuccess(res, 200, `Sign in success`, {
-            id: userID,
-            username,
-            role: userRole,
-            token
-        })
+        const isProduction = process.env.NODE_ENV === "production"
+
+        const cookie = [
+            `token=${token}`,
+            "HttpOnly",
+            "Path=/",
+            `Max-Age=${24 * 60 * 60}`,
+            isProduction ? "Secure" : "",
+            isProduction ? "SameSite=None" : "SameSite=Lax"
+        ].filter(Boolean).join("; ")
+
+        res.setHeader("Set-Cookie", cookie)
+
+        return msgSuccess(res, 200, `Sign in success`)
+    } catch (error) {
+        return msgError(res, 500, `Internal Server Error`, error)
+    }
+}
+
+export const checkAuth = (req, res) => {
+    try {
+        return msgSuccess(res, 200, "User authenticated", req.user)
+    } catch (error) {
+        return msgError(res, 500, `Internal Server Error`, error)
+    }
+}
+
+export const signOut = async (req, res) => {
+    try {
+        res.setHeader("Set-Cookie", "token=; HttpOnly; Path=/; Max-Age=0")
+        return msgSuccess(res, 200, "Sign out successfully")
     } catch (error) {
         return msgError(res, 500, `Internal Server Error`, error)
     }
