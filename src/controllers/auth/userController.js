@@ -40,7 +40,7 @@ export const signIn = async (req, res) => {
 
         await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, userID))
 
-        const token = generateToken({ id: userID, username, role: userRole })
+        const token = generateToken({ username, role: userRole })
 
         const isProduction = process.env.NODE_ENV === "production"
 
@@ -83,7 +83,6 @@ export const signOut = async (req, res) => {
         ].filter(Boolean).join("; ")
 
         res.setHeader("Set-Cookie", cookie)
-        
         return msgSuccess(res, 200, "Sign out successfully")
     } catch (error) {
         return msgError(res, 500, `Internal Server Error`, error)
