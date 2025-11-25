@@ -19,20 +19,20 @@ export const StockOutRouter = async (req, res) => {
     }
 
     if ((url === "/api/v1/stock-out" || url === "/api/v1/stock-out/") && method === "POST") {
-        const allowed = await authMiddleware(req, res)
+        const allowed = await authMiddleware(req, res, ["admin"])
         if (!allowed) return
         return createStockOut(req, res)
     }
 
     if (url.startsWith("/api/v1/stock-out/") && method === "PATCH") {
-        const allowed = await authMiddleware(req, res)
+        const allowed = await authMiddleware(req, res, ["admin"])
         if (!allowed) return
         const id = url.split("/")[4]
         return updateStockOut(req, res, id)
     }
 
     if (url.startsWith("/api/v1/stock-out/") && method === "DELETE") {
-        const allowed = await authMiddleware(req, res)
+        const allowed = await authMiddleware(req, res, ["admin"])
         if (!allowed) return
         const id = url.split("/")[4]
         return deleteStockOut(req, res, id)
