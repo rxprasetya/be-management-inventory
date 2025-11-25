@@ -71,7 +71,19 @@ export const checkAuth = (req, res) => {
 
 export const signOut = async (req, res) => {
     try {
-        res.setHeader("Set-Cookie", "token=; HttpOnly; Path=/; Max-Age=0")
+        const isProduction = process.env.NODE_ENV === "production"
+
+        const cookie = [
+            "token=",
+            "HttpOnly",
+            "Path=/",
+            "Max-Age=0",
+            isProduction ? "Secure" : "",
+            isProduction ? "SameSite=None" : "SameSite=Lax",
+        ].filter(Boolean).join("; ")
+
+        res.setHeader("Set-Cookie", cookie)
+        
         return msgSuccess(res, 200, "Sign out successfully")
     } catch (error) {
         return msgError(res, 500, `Internal Server Error`, error)
