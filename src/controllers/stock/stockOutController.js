@@ -77,8 +77,6 @@ export const createStockOut = async (req, res) => {
             notes: notes || null
         }
 
-        await db.insert(stockOut).values(newStockOut)
-
         const [{ quantity: currentQuantityStockLevel }] = await db
             .select({ quantity: stockLevels.quantity })
             .from(stockLevels)
@@ -93,6 +91,8 @@ export const createStockOut = async (req, res) => {
         const updateStockLevel = {
             quantity: currentQuantityStockLevel - Number(quantity)
         }
+
+        await db.insert(stockOut).values(newStockOut)
 
         await db.update(stockLevels).set(updateStockLevel).where(
             and(
