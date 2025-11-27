@@ -1,0 +1,19 @@
+import { getProductInStocks, getWarehouseInStocks } from "../../controllers/inventory/inventoryController.js"
+import { authMiddleware } from "../../middleware/authMiddleware.js"
+
+export const InventoryRouter = async (req, res) => {
+    const url = req.url
+    const method = req.method
+
+    if ((url === "/api/v1/inventories/products" || url === "/api/v1/inventories/products/") && method === "GET") {
+        const allowed = await authMiddleware(req, res)
+        if (!allowed) return
+        return getProductInStocks(req, res)
+    }
+
+    if ((url === "/api/v1/inventories/warehouses" || url === "/api/v1/inventories/warehouses/") && method === "GET") {
+        const allowed = await authMiddleware(req, res)
+        if (!allowed) return
+        return getWarehouseInStocks(req, res)
+    }
+}

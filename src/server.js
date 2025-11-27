@@ -8,6 +8,7 @@ import { WarehouseRouter } from "./routes/master/warehouses.js"
 import { StockLevelRouter } from "./routes/stock/stockLevels.js"
 import { StockInRouter } from "./routes/stock/stockIn.js"
 import { StockOutRouter } from "./routes/stock/stockOut.js"
+import { InventoryRouter } from "./routes/inventory/inventories.js"
 
 const port = process.env.NODE_PORT
 
@@ -29,6 +30,7 @@ const server = http.createServer((req, res) => {
     if (url?.startsWith("/api/v1/categories")) return CategoryRouter(req, res)
     if (url?.startsWith("/api/v1/products")) return ProductRouter(req, res)
     if (url?.startsWith("/api/v1/warehouses")) return WarehouseRouter(req, res)
+    if (url?.startsWith("/api/v1/inventories")) return InventoryRouter(req, res)
     if (url?.startsWith("/api/v1/stock-levels")) return StockLevelRouter(req, res)
     if (url?.startsWith("/api/v1/stock-in")) return StockInRouter(req, res)
     if (url?.startsWith("/api/v1/stock-out")) return StockOutRouter(req, res)
