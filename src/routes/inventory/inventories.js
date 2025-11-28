@@ -1,4 +1,4 @@
-import { getProductInStocks, getWarehouseInStocks } from "../../controllers/inventory/inventoryController.js"
+import { getProductInStocks, getWarehouseInStocksByProductId } from "../../controllers/inventory/inventoryController.js"
 import { authMiddleware } from "../../middleware/authMiddleware.js"
 
 export const InventoryRouter = async (req, res) => {
@@ -15,6 +15,6 @@ export const InventoryRouter = async (req, res) => {
         const allowed = await authMiddleware(req, res)
         if (!allowed) return
         const productID = url.split("/")[5]
-        return getWarehouseInStocks(req, res, productID)
+        return getWarehouseInStocksByProductId(req, res, productID)
     }
 }

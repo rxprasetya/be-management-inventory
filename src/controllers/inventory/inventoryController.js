@@ -19,7 +19,7 @@ export const getProductInStocks = async (req, res) => {
     }
 }
 
-export const getWarehouseInStocksById = async (req, res, productID) => {
+export const getWarehouseInStocksByProductId = async (req, res, productID) => {
     try {
         const warehouseInStocks = await db
             .selectDistinct({
