@@ -11,9 +11,10 @@ export const InventoryRouter = async (req, res) => {
         return getProductInStocks(req, res)
     }
 
-    if ((url === "/api/v1/inventories/warehouses" || url === "/api/v1/inventories/warehouses/") && method === "GET") {
+    if (url.startsWith("/api/v1/inventories/warehouses/") && method === "GET") {
         const allowed = await authMiddleware(req, res)
         if (!allowed) return
-        return getWarehouseInStocks(req, res)
+        const productID = url.split("/")[5]
+        return getWarehouseInStocks(req, res, productID)
     }
 }

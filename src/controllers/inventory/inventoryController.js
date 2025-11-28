@@ -12,13 +12,14 @@ export const getProductInStocks = async (req, res) => {
             })
             .from(products)
             .innerJoin(stockLevels, eq(products.id, stockLevels.productID))
+            .orderBy(products.name)
         return msgSuccess(res, 200, `Products retrieved successfully`, productInStocks)
     } catch (error) {
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }
 
-export const getWarehouseInStocks = async (req, res) => {
+export const getWarehouseInStocksById = async (req, res, productID) => {
     try {
         const warehouseInStocks = await db
             .selectDistinct({
@@ -26,7 +27,11 @@ export const getWarehouseInStocks = async (req, res) => {
                 warehouseName: warehouses.name
             })
             .from(warehouses)
-            .innerJoin(stockLevels, eq(warehouses.id, stockLevels.warehouseID))
+            .innerJoin(stockLevels, and(
+                eq(warehouses.id, stockLevels.warehouseID),
+                eq(stockLevels.productID, productID)
+            ))
+            .orderBy(warehouses.name)
         return msgSuccess(res, 200, `Warehouses retrieved successfully`, warehouseInStocks)
     } catch (error) {
         return msgError(res, 500, `Internal Server Error`, error)
