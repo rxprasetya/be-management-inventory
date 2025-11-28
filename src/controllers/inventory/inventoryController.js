@@ -1,6 +1,6 @@
 import { msgError, msgSuccess } from "../../utils/helper.js"
 import db from "../../config/db.js"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { warehouses, stockLevels, products } from "../../schema.js"
 
 export const getProductInStocks = async (req, res) => {
