@@ -1,7 +1,7 @@
 import db from "../../config/db.js"
 import { categories, products } from "../../schema.js"
 import { msgError, msgSuccess, parseBody } from "../../utils/helper.js"
-import { eq } from "drizzle-orm"
+import { eq, and, ne } from "drizzle-orm"
 import { v4 as UUID } from "uuid"
 import { categoryValidator } from "../../validators/index.js"
 
@@ -53,6 +53,16 @@ export const createCategory = async (req, res) => {
 
         const { name, description } = validation.data
 
+        const existing = await db
+            .select({
+                id: categories.id
+            })
+            .from(categories)
+            .where(eq(categories.name, name))
+            .limit(1)
+
+        if (existing.length > 0) return msgError(res, 409, "Duplicate category.")
+
         const newCategory = {
             id: UUID(),
             name,
@@ -86,6 +96,21 @@ export const updateCategory = async (req, res, id) => {
 
         const { name, description } = validation.data
 
+        const existing = await db
+            .select({
+                id: categories.id
+            })
+            .from(categories)
+            .where(
+                and(
+                    eq(categories.name, name),
+                    ne(categories.id, id)
+                )
+            )
+            .limit(1)
+
+        if (existing.length > 0) return msgError(res, 409, "Duplicate category.")
+
         const updateCategory = {
             name,
             description: description || null
@@ -114,7 +139,7 @@ export const deleteCategory = async (req, res, id) => {
             .where(eq(products.categoryID, id))
             .limit(1)
 
-        if (relatedProduct.length > 0) return msgError(res, 400, "Cannot delete category: still referenced in products")
+        if (relatedProduct.length > 0) return msgError(res, 400, "Category still in use by products.")
 
         await db.delete(categories).where(eq(categories.id, id))
         return msgSuccess(res, 200, `Category deleted successfully`, { id })

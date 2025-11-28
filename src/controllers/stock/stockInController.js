@@ -1,7 +1,7 @@
 import db from "../../config/db.js"
 import { warehouses, stockIn, products, stockLevels } from "../../schema.js"
 import { msgError, msgSuccess, parseBody } from "../../utils/helper.js"
-import { and, eq } from "drizzle-orm"
+import { and, desc, eq, ne, sql } from "drizzle-orm"
 import { v4 as UUID } from "uuid"
 import { stockInValidator } from "../../validators/index.js"
 
@@ -19,6 +19,7 @@ export const getStockIn = async (req, res) => {
             .from(stockIn)
             .innerJoin(products, eq(stockIn.productID, products.id))
             .innerJoin(warehouses, eq(stockIn.warehouseID, warehouses.id))
+            .orderBy(desc(stockIn.date))
 
         return msgSuccess(res, 200, `Stocks retrieved successfully`, stock)
     } catch (error) {
@@ -65,6 +66,18 @@ export const createStockIn = async (req, res) => {
 
         const { date, productID, warehouseID, quantity, sourceType, sourceDetail, refrenceCode, notes } = validation.data
 
+        const existing = await db
+            .select({
+                id: stockIn.id
+            })
+            .from(stockIn)
+            .where(
+                eq(stockIn.refrenceCode, refrenceCode),
+            )
+            .limit(1)
+
+        if (existing.length > 0) return msgError(res, 409, "Duplicate reference code.")
+
         const newStockIn = {
             id: UUID(),
             date: new Date(date),
@@ -77,26 +90,24 @@ export const createStockIn = async (req, res) => {
             notes: notes || null
         }
 
-        await db.insert(stockIn).values(newStockIn)
+        await db.transaction(async (tx) => {
 
-        const [{ quantity: currentQuantityStockLevel }] = await db
-            .select({ quantity: stockLevels.quantity })
-            .from(stockLevels)
-            .where(
-                and(
-                    eq(stockLevels.productID, productID),
-                    eq(stockLevels.warehouseID, warehouseID)
-                ))
+            await tx.insert(stockIn).values(newStockIn)
 
-        const updateStockLevel = {
-            quantity: currentQuantityStockLevel + Number(quantity)
-        }
+            await tx
+                .update(stockLevels)
+                .set({
+                    quantity: sql`${stockLevels.quantity} + ${Number(quantity)}`
+                })
+                .where(
+                    and(
+                        eq(stockLevels.productID, productID),
+                        eq(stockLevels.warehouseID, warehouseID)
+                    )
+                )
 
-        await db.update(stockLevels).set(updateStockLevel).where(
-            and(
-                eq(stockLevels.productID, productID),
-                eq(stockLevels.warehouseID, warehouseID)
-            ))
+        })
+
         return msgSuccess(res, 201, `Stock created successfully`, newStockIn)
     } catch (error) {
         return msgError(res, 500, `Internal Server Error`, error)
@@ -105,16 +116,20 @@ export const createStockIn = async (req, res) => {
 
 export const updateStockIn = async (req, res, id) => {
     try {
-        const [{ id: stockInID, quantity: oldQuantityStockIn }] = await db
+        const stock = await db
             .select({
                 id: stockIn.id,
-                quantity: stockIn.quantity
+                oldQuantity: stockIn.quantity,
+                oldProductID: stockIn.productID,
+                oldWarehouseID: stockIn.warehouseID
             })
             .from(stockIn)
             .where(eq(stockIn.id, id))
             .limit(1)
 
-        if (!stockInID) return msgError(res, 404, "Stock not found")
+        if (stock.length === 0) return msgError(res, 404, "Stock not found")
+
+        const { oldQuantity, oldProductID, oldWarehouseID } = stock[0]
 
         const body = await parseBody(req)
         const validation = stockInValidator.safeParse(body)
@@ -126,38 +141,80 @@ export const updateStockIn = async (req, res, id) => {
 
         const { date, productID, warehouseID, quantity, sourceType, sourceDetail, refrenceCode, notes } = validation.data
 
-        const [{ quantity: currentQuantityStockLevel }] = await db
-            .select({ quantity: stockLevels.quantity })
-            .from(stockLevels)
+        const existing = await db
+            .select({
+                id: stockIn.id
+            })
+            .from(stockIn)
             .where(
                 and(
-                    eq(stockLevels.productID, productID),
-                    eq(stockLevels.warehouseID, warehouseID)
-                ))
+                    ne(stockIn.id, id),
+                    eq(stockIn.refrenceCode, refrenceCode),
+                )
+            )
+            .limit(1)
 
-        const updateStockIn = {
-            date: new Date(date),
-            productID,
-            warehouseID,
-            quantity: Number(quantity),
-            sourceType: sourceType || null,
-            sourceDetail: sourceDetail || null,
-            refrenceCode,
-            notes: notes || null
-        }
+        if (existing.length > 0) return msgError(res, 409, "Duplicate reference code.")
 
-        const updateStockLevel = {
-            quantity: currentQuantityStockLevel - oldQuantityStockIn + Number(quantity)
-        }
+        await db.transaction(async (tx) => {
 
-        await db.update(stockIn).set(updateStockIn).where(eq(stockIn.id, id))
+            const [stockLevel] = await tx
+                .select({ quantity: stockLevels.quantity })
+                .from(stockLevels)
+                .where(
+                    and(
+                        eq(stockLevels.productID, oldProductID),
+                        eq(stockLevels.warehouseID, oldWarehouseID)
+                    )
+                )
+                .limit(1)
 
-        await db.update(stockLevels).set(updateStockLevel).where(
-            and(
-                eq(stockLevels.productID, productID),
-                eq(stockLevels.warehouseID, warehouseID)
-            ))
-        return msgSuccess(res, 200, `Stock updated successfully`, { id, ...updateStockIn })
+            if (!stockLevel) throw new Error("Stock not found")
+
+            if (stockLevel.quantity < oldQuantity) throw new Error("Insufficient stock")
+
+            await tx
+                .update(stockLevels)
+                .set({
+                    quantity: sql`${stockLevels.quantity} - ${oldQuantity}`
+                })
+                .where(
+                    and(
+                        eq(stockLevels.productID, oldProductID),
+                        eq(stockLevels.warehouseID, oldWarehouseID)
+                    )
+                )
+
+            await tx
+                .update(stockLevels)
+                .set({
+                    quantity: sql`${stockLevels.quantity} + ${Number(quantity)}`
+                })
+                .where(
+                    and(
+                        eq(stockLevels.productID, productID),
+                        eq(stockLevels.warehouseID, warehouseID)
+                    )
+                )
+
+            const updateStockIn = {
+                date: new Date(date),
+                productID,
+                warehouseID,
+                quantity: Number(quantity),
+                sourceType: sourceType || null,
+                sourceDetail: sourceDetail || null,
+                refrenceCode,
+                notes: notes || null
+            }
+
+            await tx
+                .update(stockIn)
+                .set(updateStockIn)
+                .where(eq(stockIn.id, id))
+        })
+
+        return msgSuccess(res, 200, `Stock updated successfully`, { id })
     } catch (error) {
         return msgError(res, 500, `Internal Server Error`, error)
     }
@@ -165,46 +222,52 @@ export const updateStockIn = async (req, res, id) => {
 
 export const deleteStockIn = async (req, res, id) => {
     try {
-        const stock = await db
-            .select({ id: stockIn.id })
-            .from(stockIn)
-            .where(eq(stockIn.id, id))
-            .limit(1)
-
-        if (stock.length === 0) return msgError(res, 404, "Stock not found")
-
-        const [{ quantity: currentQuantityStockIn, productID, warehouseID }] = await db
+        const [stock] = await db
             .select({
+                id: stockIn.id,
                 productID: stockIn.productID,
                 warehouseID: stockIn.warehouseID,
                 quantity: stockIn.quantity
             })
             .from(stockIn)
             .where(eq(stockIn.id, id))
+            .limit(1)
 
-        const [{ quantity: currentQuantityStockLevel }] = await db
-            .select({ quantity: stockLevels.quantity })
-            .from(stockLevels)
-            .where(
-                and(
-                    eq(stockLevels.productID, productID),
-                    eq(stockLevels.warehouseID, warehouseID)
-                ))
+        if (!stock) return msgError(res, 404, "Stock not found")
 
-        const updateStockLevel = {
-            quantity: currentQuantityStockLevel - currentQuantityStockIn
-        }
+        await db.transaction(async (tx) => {
 
-        await db
-            .update(stockLevels)
-            .set(updateStockLevel)
-            .where(
-                and(
-                    eq(stockLevels.productID, productID),
-                    eq(stockLevels.warehouseID, warehouseID),
-                ))
+            const [stockLevel] = await tx
+                .select({ quantity: stockLevels.quantity })
+                .from(stockLevels)
+                .where(
+                    and(
+                        eq(stockLevels.productID, stock.productID),
+                        eq(stockLevels.warehouseID, stock.warehouseID)
+                    )
+                )
+                .limit(1)
 
-        await db.delete(stockIn).where(eq(stockIn.id, id))
+            if (!stockLevel) throw new Error("Stock not found")
+
+            if (stockLevel.quantity < stock.quantity) throw new Error("Insufficient stock")
+
+            await tx
+                .update(stockLevels)
+                .set({
+                    quantity: sql`${stockLevels.quantity} - ${stock.quantity}`
+                })
+                .where(
+                    and(
+                        eq(stockLevels.productID, stock.productID),
+                        eq(stockLevels.warehouseID, stock.warehouseID),
+                    )
+                )
+
+            await tx.delete(stockIn).where(eq(stockIn.id, id))
+
+        })
+
         return msgSuccess(res, 200, `Stock deleted successfully`, { id })
     } catch (error) {
         return msgError(res, 500, `Internal Server Error`, error)

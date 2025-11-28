@@ -1,7 +1,7 @@
 import db from "../../config/db.js"
 import { stockIn, stockLevels, stockOut, stockTransfers, warehouses } from "../../schema.js"
 import { msgError, msgSuccess, parseBody } from "../../utils/helper.js"
-import { eq } from "drizzle-orm"
+import { and, eq, ne } from "drizzle-orm"
 import { v4 as UUID } from "uuid"
 import { warehouseValidator } from "../../validators/index.js"
 
@@ -53,6 +53,16 @@ export const createWarehouse = async (req, res) => {
 
         const { name, location } = validation.data
 
+        const existing = await db
+            .select({
+                id: warehouses.id
+            })
+            .from(warehouses)
+            .where(eq(warehouses.name, name))
+            .limit(1)
+
+        if (existing.length > 0) return msgError(res, 409, "Duplicate warehouse.")
+
         const newWarehouse = {
             id: UUID(),
             name,
@@ -86,6 +96,21 @@ export const updateWarehouse = async (req, res, id) => {
 
         const { name, location } = validation.data
 
+        const existing = await db
+            .select({
+                id: warehouses.id
+            })
+            .from(warehouses)
+            .where(
+                and(
+                    eq(warehouses.name, name),
+                    ne(warehouses.id, id)
+                )
+            )
+            .limit(1)
+
+        if (existing.length > 0) return msgError(res, 409, "Duplicate warehouse.")
+
         const updateWarehouse = {
             name,
             location: location || null
@@ -114,7 +139,7 @@ export const deleteWarehouse = async (req, res, id) => {
             .where(eq(stockLevels.warehouseID, id))
             .limit(1)
 
-        if (relatedStockLevel.length > 0) return msgError(res, 400, "Cannot delete warehouse: still referenced in stock levels")
+        if (relatedStockLevel.length > 0) return msgError(res, 400, "Warehouse still in use by stock.")
 
         const relatedStockIn = await db
             .select({ id: stockIn.id })
@@ -122,7 +147,7 @@ export const deleteWarehouse = async (req, res, id) => {
             .where(eq(stockIn.warehouseID, id))
             .limit(1)
 
-        if (relatedStockIn.length > 0) return msgError(res, 400, "Cannot delete warehouse: still referenced in stock in")
+        if (relatedStockIn.length > 0) return msgError(res, 400, "Warehouse still in use by stock in.")
 
         const relatedStockOut = await db
             .select({ id: stockOut.id })
@@ -130,15 +155,15 @@ export const deleteWarehouse = async (req, res, id) => {
             .where(eq(stockOut.productID, id))
             .limit(1)
 
-        if (relatedStockOut.length > 0) return msgError(res, 400, "Cannot delete warehouse: still referenced in stock out")
+        if (relatedStockOut.length > 0) return msgError(res, 400, "Warehouse still in use by stock out.")
 
-        const relatedStockTransfer = await db
-            .select({ id: stockTransfers.id })
-            .from(stockTransfers)
-            .where(eq(stockTransfers.productID, id))
-            .limit(1)
+        // const relatedStockTransfer = await db
+        //     .select({ id: stockTransfers.id })
+        //     .from(stockTransfers)
+        //     .where(eq(stockTransfers.productID, id))
+        //     .limit(1)
 
-        if (relatedStockTransfer.length > 0) return msgError(res, 400, "Cannot delete warehouse: still referenced in stock transfers")
+        // if (relatedStockTransfer.length > 0) return msgError(res, 400, "Cannot delete warehouse: still referenced in stock transfers")
 
         await db.delete(warehouses).where(eq(warehouses.id, id))
         return msgSuccess(res, 200, `Warehouse deleted successfully`, { id })

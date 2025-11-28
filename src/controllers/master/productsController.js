@@ -1,7 +1,7 @@
 import db from "../../config/db.js"
 import { categories, products, stockIn, stockLevels, stockOut, stockTransfers } from "../../schema.js"
 import { msgError, msgSuccess, parseBody } from "../../utils/helper.js"
-import { eq } from "drizzle-orm"
+import { and, desc, eq, ne, or } from "drizzle-orm"
 import { v4 as UUID } from "uuid"
 import { productValidator } from "../../validators/index.js"
 
@@ -18,7 +18,7 @@ export const getProducts = async (req, res) => {
             })
             .from(products)
             .innerJoin(categories, eq(products.categoryID, categories.id))
-            .orderBy(products.name)
+            .orderBy(desc(products.createdAt))
 
         return msgSuccess(res, 200, `Products retrieved successfully`, product)
     } catch (error) {
@@ -62,6 +62,21 @@ export const createProduct = async (req, res) => {
 
         const { sku, name, categoryID, unit, description, minStock } = validation.data
 
+        const existing = await db
+            .select({
+                id: products.id
+            })
+            .from(products)
+            .where(
+                or(
+                    sku ? eq(products.sku, sku) : undefined,
+                    eq(products.name, name)
+                )
+            )
+            .limit(1)
+
+        if (existing.length > 0) return msgError(res, 409, "Duplicate product.")
+
         const newProduct = {
             id: UUID(),
             sku: sku || null,
@@ -99,6 +114,24 @@ export const updateProduct = async (req, res, id) => {
 
         const { sku, name, categoryID, unit, description, minStock } = validation.data
 
+        const existing = await db
+            .select({
+                id: products.id
+            })
+            .from(products)
+            .where(
+                and(
+                    ne(products.id, id),
+                    or(
+                        sku ? eq(products.sku, sku) : undefined,
+                        eq(products.name, name)
+                    )
+                )
+            )
+            .limit(1)
+
+        if (existing.length > 0) return msgError(res, 409, `Duplicate product ${sku ? "sku" : "name"}.`)
+
         const updateProduct = {
             sku: sku || null,
             name,
@@ -131,7 +164,7 @@ export const deleteProduct = async (req, res, id) => {
             .where(eq(stockLevels.productID, id))
             .limit(1)
 
-        if (relatedStockLevel.length > 0) return msgError(res, 400, "Cannot delete product: still referenced in stock levels")
+        if (relatedStockLevel.length > 0) return msgError(res, 400, "Product still in use by stock.")
 
         const relatedStockIn = await db
             .select({ id: stockIn.id })
@@ -139,7 +172,7 @@ export const deleteProduct = async (req, res, id) => {
             .where(eq(stockIn.productID, id))
             .limit(1)
 
-        if (relatedStockIn.length > 0) return msgError(res, 400, "Cannot delete product: still referenced in stock in")
+        if (relatedStockIn.length > 0) return msgError(res, 400, "Product still in use by stock in.")
 
         const relatedStockOut = await db
             .select({ id: stockOut.id })
@@ -147,15 +180,15 @@ export const deleteProduct = async (req, res, id) => {
             .where(eq(stockOut.productID, id))
             .limit(1)
 
-        if (relatedStockOut.length > 0) return msgError(res, 400, "Cannot delete product: still referenced in stock out")
+        if (relatedStockOut.length > 0) return msgError(res, 400, "Product still in use by stock out.")
 
-        const relatedStockTransfer = await db
-            .select({ id: stockTransfers.id })
-            .from(stockTransfers)
-            .where(eq(stockTransfers.productID, id))
-            .limit(1)
+        // const relatedStockTransfer = await db
+        //     .select({ id: stockTransfers.id })
+        //     .from(stockTransfers)
+        //     .where(eq(stockTransfers.productID, id))
+        //     .limit(1)
 
-        if (relatedStockTransfer.length > 0) return msgError(res, 400, "Cannot delete product: still referenced in stock transfers")
+        // if (relatedStockTransfer.length > 0) return msgError(res, 400, "Cannot delete product: still referenced in stock transfers")
 
         await db.delete(products).where(eq(products.id, id))
         return msgSuccess(res, 200, `Product deleted successfully`, { id })

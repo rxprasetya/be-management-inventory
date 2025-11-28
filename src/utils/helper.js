@@ -1,9 +1,14 @@
 export const msgError = (res, code, message, e) => {
-    res.writeHead(code, { "Content-Type": "application/json" })
+
+    const isErrorObject = e instanceof Error
+    const statusCode = isErrorObject ? 400 : code
+    const errorMessage = isErrorObject ? e.message : message
+
+    res.writeHead(statusCode, { "Content-Type": "application/json" })
     res.end(JSON.stringify({
         success: false,
-        message,
-        error: e ?? message
+        message: errorMessage,
+        error: errorMessage
     }))
 }
 
