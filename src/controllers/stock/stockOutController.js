@@ -1,7 +1,7 @@
 import db from "../../config/db.js"
 import { warehouses, stockOut, products, stockLevels } from "../../schema.js"
 import { msgError, msgSuccess, parseBody } from "../../utils/helper.js"
-import { and, desc, eq, sql } from "drizzle-orm"
+import { and, desc, eq, ne, sql } from "drizzle-orm"
 import { v4 as UUID } from "uuid"
 import { stockOutValidator } from "../../validators/index.js"
 
