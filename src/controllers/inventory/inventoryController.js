@@ -1,6 +1,6 @@
 import { msgError, msgSuccess } from "../../utils/helper.js"
 import db from "../../config/db.js"
-import { and, eq } from "drizzle-orm"
+import { and, eq, lte } from "drizzle-orm"
 import { warehouses, stockLevels, products } from "../../schema.js"
 
 export const getProductInStocks = async (req, res) => {
@@ -33,6 +33,22 @@ export const getWarehouseInStocksByProductId = async (req, res, productID) => {
             ))
             .orderBy(warehouses.name)
         return msgSuccess(res, 200, `Warehouses retrieved successfully`, warehouseInStocks)
+    } catch (error) {
+        return msgError(res, 500, `Internal Server Error`, error)
+    }
+}
+
+export const getEmptyOrLowProductStocks = async (req, res) => {
+    try {
+        const emptyOrLowProductStocks = await db
+            .select({
+                id: stockLevels.id
+            })
+            .from(stockLevels)
+            .innerJoin(products, eq(products.id, stockLevels.productID))
+            .where(lte(stockLevels.quantity, products.minStock))
+
+        return msgSuccess(res, 200, `Notification retrieved successfully`, emptyOrLowProductStocks)
     } catch (error) {
         return msgError(res, 500, `Internal Server Error`, error)
     }

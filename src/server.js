@@ -9,6 +9,7 @@ import { StockLevelRouter } from "./routes/stock/stockLevels.js"
 import { StockInRouter } from "./routes/stock/stockIn.js"
 import { StockOutRouter } from "./routes/stock/stockOut.js"
 import { InventoryRouter } from "./routes/inventory/inventories.js"
+import { DashboardRouter } from "./routes/dashboard/dashboard.js"
 
 const port = process.env.NODE_PORT
 
@@ -37,6 +38,7 @@ const server = http.createServer((req, res) => {
         return msgSuccess(res, 200, `Welcome to Management Inventory API, created by @rxprasetya`)
     }
     if (url?.startsWith("/api/v1/auth")) return UserRouter(req, res)
+    if (url?.startsWith("/api/v1/dashboard")) return DashboardRouter(req, res)
     if (url?.startsWith("/api/v1/categories")) return CategoryRouter(req, res)
     if (url?.startsWith("/api/v1/products")) return ProductRouter(req, res)
     if (url?.startsWith("/api/v1/warehouses")) return WarehouseRouter(req, res)
