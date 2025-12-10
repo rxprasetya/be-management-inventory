@@ -10,7 +10,7 @@ export const msgError = (res, code, message, e) => {
     res.writeHead(code, { "Content-Type": "application/json" })
     res.end(JSON.stringify({
         success: false,
-        message,
+        message: e instanceof Error ? e.message : message,
         error: errorMap[code] ?? "ERROR_UNKOWN",
         e: process.env.NODE_ENV !== "production" ? e : undefined
     }))

@@ -106,7 +106,7 @@ export const createStockOut = async (req, res) => {
 
             if (!stockLevel) throw new Error("Stock not found")
 
-            if (stockLevel.quantity < Number(quantity)) throw new Error("Insufficient stock")
+            if (stockLevel.quantity <= Number(quantity)) throw new Error("Insufficient stock")
 
             await tx.insert(stockOut).values(newStockOut)
 
@@ -199,7 +199,7 @@ export const updateStockOut = async (req, res, id) => {
 
             if (!newStockLevel) throw new Error("Stock not found")
 
-            if (newStockLevel.quantity < Number(quantity)) throw new Error("Insufficient stock")
+            if (newStockLevel.quantity <= Number(quantity)) throw new Error("Insufficient stock")
 
             await tx
                 .update(stockLevels)
