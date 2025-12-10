@@ -125,7 +125,7 @@ export const createStockOut = async (req, res) => {
         logger.info({
             status: true,
             action: "CREATE_STOCK_OUT",
-            data: newStockIn
+            data: newStockOut
         })
 
         return msgSuccess(res, 201, `Stock created successfully`, newStockOut)
