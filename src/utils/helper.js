@@ -21,7 +21,7 @@ export const msgSuccess = (res, code, message, data) => {
     res.end(JSON.stringify({
         success: true,
         message,
-        data: process.env.NODE_ENV !== "production" ? data : undefined
+        data: data ?? undefined
     }))
 }
 
