@@ -186,6 +186,16 @@ export const updateStockOut = async (req, res, id) => {
 
         await db.transaction(async (tx) => {
 
+            await tx
+                .update(stockLevels)
+                .set({ quantity: sql`${stockLevels.quantity} + ${oldQuantity}` })
+                .where(
+                    and(
+                        eq(stockLevels.productID, oldProductID),
+                        eq(stockLevels.warehouseID, oldWarehouseID)
+                    )
+                )
+
             const [newStockLevel] = await tx
                 .select({ quantity: stockLevels.quantity })
                 .from(stockLevels)
@@ -199,17 +209,7 @@ export const updateStockOut = async (req, res, id) => {
 
             if (!newStockLevel) throw new Error("Stock not found")
 
-            if (newStockLevel.quantity <= Number(quantity)) throw new Error("Insufficient stock")
-
-            await tx
-                .update(stockLevels)
-                .set({ quantity: sql`${stockLevels.quantity} + ${oldQuantity}` })
-                .where(
-                    and(
-                        eq(stockLevels.productID, oldProductID),
-                        eq(stockLevels.warehouseID, oldWarehouseID)
-                    )
-                )
+            if (newStockLevel.quantity < Number(quantity)) throw new Error("Insufficient stock")
 
             await tx
                 .update(stockLevels)
