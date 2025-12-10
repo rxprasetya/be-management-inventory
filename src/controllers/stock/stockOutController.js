@@ -93,20 +93,20 @@ export const createStockOut = async (req, res) => {
 
         await db.transaction(async (tx) => {
 
-            // const [stockLevel] = await tx
-            //     .select({ quantity: stockLevels.quantity })
-            //     .from(stockLevels)
-            //     .where(
-            //         and(
-            //             eq(stockLevels.productID, productID),
-            //             eq(stockLevels.warehouseID, warehouseID)
-            //         )
-            //     )
-            //     .limit(1)
+            const [stockLevel] = await tx
+                .select({ quantity: stockLevels.quantity })
+                .from(stockLevels)
+                .where(
+                    and(
+                        eq(stockLevels.productID, productID),
+                        eq(stockLevels.warehouseID, warehouseID)
+                    )
+                )
+                .limit(1)
 
-            // if (!stockLevel) throw new Error("Stock not found")
+            if (!stockLevel) throw new Error("Stock not found")
 
-            // if (stockLevel.quantity < Number(quantity)) throw new Error("Insufficient stock")
+            if (stockLevel.quantity < Number(quantity)) throw new Error("Insufficient stock")
 
             await tx.insert(stockOut).values(newStockOut)
 
@@ -186,20 +186,20 @@ export const updateStockOut = async (req, res, id) => {
 
         await db.transaction(async (tx) => {
 
-            // const [newStockLevel] = await tx
-            //     .select({ quantity: stockLevels.quantity })
-            //     .from(stockLevels)
-            //     .where(
-            //         and(
-            //             eq(stockLevels.productID, productID),
-            //             eq(stockLevels.warehouseID, warehouseID)
-            //         )
-            //     )
-            //     .limit(1)
+            const [newStockLevel] = await tx
+                .select({ quantity: stockLevels.quantity })
+                .from(stockLevels)
+                .where(
+                    and(
+                        eq(stockLevels.productID, productID),
+                        eq(stockLevels.warehouseID, warehouseID)
+                    )
+                )
+                .limit(1)
 
-            // if (!newStockLevel) throw new Error("Stock not found")
+            if (!newStockLevel) throw new Error("Stock not found")
 
-            // if (newStockLevel.quantity < Number(quantity)) throw new Error("Insufficient stock")
+            if (newStockLevel.quantity < Number(quantity)) throw new Error("Insufficient stock")
 
             await tx
                 .update(stockLevels)
