@@ -4,6 +4,7 @@ import { msgError, msgSuccess, parseBody } from "../../utils/helper.js"
 import { and, eq, ne } from "drizzle-orm"
 import { v4 as UUID } from "uuid"
 import { warehouseValidator } from "../../validators/index.js"
+import logger from "../../logger/index.js"
 
 export const getWarehouses = async (req, res) => {
     try {
@@ -70,8 +71,22 @@ export const createWarehouse = async (req, res) => {
         }
 
         await db.insert(warehouses).values(newWarehouse)
+
+        logger.info({
+            status: true,
+            action: "CREATE_WAREHOUSE",
+            data: newWarehouse
+        })
+
         return msgSuccess(res, 201, `Warehouse created successfully`, newWarehouse)
     } catch (error) {
+
+        logger.error({
+            status: false,
+            action: "CREATE_WAREHOUSE",
+            message: error.message,
+        })
+
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }
@@ -79,12 +94,18 @@ export const createWarehouse = async (req, res) => {
 export const updateWarehouse = async (req, res, id) => {
     try {
         const warehouse = await db
-            .select({ id: warehouses.id })
+            .select({
+                // id: warehouses.id,
+                oldName: warehouses.name,
+                oldLocation: warehouses.location
+            })
             .from(warehouses)
             .where(eq(warehouses.id, id))
             .limit(1)
 
         if (warehouse.length === 0) return msgError(res, 404, "Warehouse not found")
+
+        const { oldName, oldLocation } = warehouse[0]
 
         const body = await parseBody(req)
         const validation = warehouseValidator.safeParse(body)
@@ -117,8 +138,27 @@ export const updateWarehouse = async (req, res, id) => {
         }
 
         await db.update(warehouses).set(updateWarehouse).where(eq(warehouses.id, id))
+
+        logger.info({
+            status: true,
+            action: "UPDATE_WAREHOUSE",
+            oldData: {
+                id,
+                oldName,
+                oldLocation
+            },
+            newData: { id, ...updateWarehouse }
+        })
+
         return msgSuccess(res, 200, `Warehouse updated successfully`, { id, ...updateWarehouse })
     } catch (error) {
+
+        logger.error({
+            status: false,
+            action: "UPDATE_WAREHOUSE",
+            message: error.message,
+        })
+
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }
@@ -166,8 +206,22 @@ export const deleteWarehouse = async (req, res, id) => {
         // if (relatedStockTransfer.length > 0) return msgError(res, 400, "Cannot delete warehouse: still referenced in stock transfers")
 
         await db.delete(warehouses).where(eq(warehouses.id, id))
+
+        logger.info({
+            status: true,
+            action: "DELETE_WAREHOUSE",
+            id
+        })
+
         return msgSuccess(res, 200, `Warehouse deleted successfully`, { id })
     } catch (error) {
+
+        logger.error({
+            status: false,
+            action: "DELETE_WAREHOUSE",
+            message: error.message,
+        })
+
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }

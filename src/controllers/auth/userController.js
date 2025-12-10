@@ -4,6 +4,7 @@ import { msgError, msgSuccess, parseBody } from "../../utils/helper.js"
 import { eq } from "drizzle-orm"
 import { userValidator } from "../../validators/index.js"
 import { comparePassword, generateToken } from "../../utils/auth.js"
+import logger from "../../logger/index.js"
 
 export const signIn = async (req, res) => {
     try {
@@ -55,17 +56,42 @@ export const signIn = async (req, res) => {
 
         res.setHeader("Set-Cookie", cookie)
 
+        logger.info({
+            status: true,
+            action: "SIGN_IN",
+            username
+        })
+
         return msgSuccess(res, 200, `Sign in success`)
     } catch (error) {
-        return msgError(res, 500, `Internal Server Error`, error)
+
+        logger.error({
+            status: false,
+            action: "SIGN_IN",
+            message: error.message,
+        })
+
+        return msgError(res, 500, `Internal Server Error`)
     }
 }
 
 export const checkAuth = (req, res) => {
     try {
+
+        // logger.info({
+        //     action: "CHECK_AUTH",
+        //     username: req.user.username,
+        // })
+
         return msgSuccess(res, 200, "User authenticated", req.user)
     } catch (error) {
-        return msgError(res, 500, `Internal Server Error`, error)
+
+        // logger.error({
+        //     action: "CHECK_AUTH",
+        //     message: error.message,
+        // })
+
+        return msgError(res, 500, `Internal Server Error`)
     }
 }
 
@@ -83,8 +109,22 @@ export const signOut = async (req, res) => {
         ].filter(Boolean).join("; ")
 
         res.setHeader("Set-Cookie", cookie)
+
+        logger.info({
+            status: true,
+            action: "SIGN_OUT",
+            username: req.user.username,
+        })
+
         return msgSuccess(res, 200, "Sign out successfully")
     } catch (error) {
-        return msgError(res, 500, `Internal Server Error`, error)
+
+        logger.error({
+            status: false,
+            action: "SIGN_OUT",
+            message: error.message,
+        })
+
+        return msgError(res, 500, `Internal Server Error`)
     }
 }

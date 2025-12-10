@@ -1,14 +1,18 @@
 export const msgError = (res, code, message, e) => {
 
-    const isErrorObject = e instanceof Error
-    const statusCode = isErrorObject ? 400 : code
-    const errorMessage = isErrorObject ? e.message : message
+    const errorMap = {
+        400: "ERROR_BAD_REQUEST",
+        404: "ERROR_NOT_FOUND",
+        409: "ERROR_DUPLICATE",
+        500: "ERROR_SERVER",
+    }
 
-    res.writeHead(statusCode, { "Content-Type": "application/json" })
+    res.writeHead(code, { "Content-Type": "application/json" })
     res.end(JSON.stringify({
         success: false,
-        message: errorMessage,
-        error: errorMessage
+        message,
+        error: errorMap[code] ?? "ERROR_UNKOWN",
+        e: process.env.NODE_ENV !== "production" && e
     }))
 }
 
@@ -17,7 +21,7 @@ export const msgSuccess = (res, code, message, data) => {
     res.end(JSON.stringify({
         success: true,
         message,
-        data
+        data: process.env.NODE_ENV !== "production" && data
     }))
 }
 

@@ -4,6 +4,7 @@ import { msgError, msgSuccess, parseBody } from "../../utils/helper.js"
 import { and, desc, eq, ne } from "drizzle-orm"
 import { v4 as UUID } from "uuid"
 import { stockLevelValidator } from "../../validators/index.js"
+import logger from "../../logger/index.js"
 
 export const getStockLevels = async (req, res) => {
     try {
@@ -84,8 +85,22 @@ export const createStockLevel = async (req, res) => {
         }
 
         await db.insert(stockLevels).values(newStockLevel)
+
+        logger.info({
+            status: true,
+            action: "CREATE_STOCK_LEVEL",
+            data: newStockLevel
+        })
+
         return msgSuccess(res, 201, `Stock created successfully`, newStockLevel)
     } catch (error) {
+
+        logger.error({
+            status: false,
+            action: "CREATE_STOCK_LEVEL",
+            message: error.message,
+        })
+
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }
@@ -93,12 +108,19 @@ export const createStockLevel = async (req, res) => {
 export const updateStockLevel = async (req, res, id) => {
     try {
         const stockLevel = await db
-            .select({ id: stockLevels.id })
+            .select({
+                id: stockLevels.id,
+                oldProductID: stockLevels.productID,
+                oldWarehouseID: stockLevels.warehouseID,
+                oldQuantity: stockLevels.quantity,
+            })
             .from(stockLevels)
             .where(eq(stockLevels.id, id))
             .limit(1)
 
         if (stockLevel.length === 0) return msgError(res, 404, "Stock not found")
+
+        const { oldProductID, oldWarehouseID, oldQuantity } = stockLevel[0]
 
         const body = await parseBody(req)
         const validation = stockLevelValidator.safeParse(body)
@@ -133,8 +155,28 @@ export const updateStockLevel = async (req, res, id) => {
         }
 
         await db.update(stockLevels).set(updateStockLevel).where(eq(stockLevels.id, id))
+
+        logger.info({
+            status: true,
+            action: "UPDATE_STOCK_LEVEL",
+            oldData: {
+                id,
+                oldProductID,
+                oldWarehouseID,
+                oldQuantity
+            },
+            newData: { id, ...updateStockLevel }
+        })
+
         return msgSuccess(res, 200, `Stock updated successfully`, { id, ...updateStockLevel })
     } catch (error) {
+
+        logger.error({
+            status: false,
+            action: "UPDATE_STOCK_LEVEL",
+            message: error.message,
+        })
+
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }
@@ -182,8 +224,22 @@ export const deleteStockLevel = async (req, res, id) => {
         if (relatedStockOut.length > 0) return msgError(res, 400, "Stock still in use by stock out.")
 
         await db.delete(stockLevels).where(eq(stockLevels.id, id))
+
+        logger.info({
+            status: true,
+            action: "DELETE_STOCK_LEVEL",
+            id
+        })
+
         return msgSuccess(res, 200, `Stock deleted successfully`, { id })
     } catch (error) {
+
+        logger.error({
+            status: false,
+            action: "DELETE_STOCK_LEVEL",
+            message: error.message,
+        })
+
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }

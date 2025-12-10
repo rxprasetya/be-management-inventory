@@ -4,6 +4,7 @@ import { msgError, msgSuccess, parseBody } from "../../utils/helper.js"
 import { and, desc, eq, ne, or } from "drizzle-orm"
 import { v4 as UUID } from "uuid"
 import { productValidator } from "../../validators/index.js"
+import logger from "../../logger/index.js"
 
 export const getProducts = async (req, res) => {
     try {
@@ -88,8 +89,22 @@ export const createProduct = async (req, res) => {
         }
 
         await db.insert(products).values(newProduct)
+
+        logger.info({
+            status: true,
+            action: "CREATE_PRODUCT",
+            data: newProduct
+        })
+
         return msgSuccess(res, 201, `Product created successfully`, newProduct)
     } catch (error) {
+
+        logger.error({
+            status: false,
+            action: "CREATE_PRODUCT",
+            message: error.message,
+        })
+
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }
@@ -97,12 +112,22 @@ export const createProduct = async (req, res) => {
 export const updateProduct = async (req, res, id) => {
     try {
         const product = await db
-            .select({ id: products.id })
+            .select({
+                // id: products.id,
+                oldSku: products.sku,
+                oldName: products.name,
+                oldCategoryID: products.categoryID,
+                oldUnit: products.unit,
+                oldDescription: products.description,
+                oldMinStock: products.minStock,
+            })
             .from(products)
             .where(eq(products.id, id))
             .limit(1)
 
         if (product.length === 0) return msgError(res, 404, "Product not found")
+
+        const { oldSku, oldName, oldCategoryID, oldUnit, oldDescription, oldMinStock } = product[0]
 
         const body = await parseBody(req)
         const validation = productValidator.safeParse(body)
@@ -142,8 +167,31 @@ export const updateProduct = async (req, res, id) => {
         }
 
         await db.update(products).set(updateProduct).where(eq(products.id, id))
+
+        logger.info({
+            status: true,
+            action: "UPDATE_PRODUCT",
+            oldData: {
+                id,
+                oldSku,
+                oldName,
+                oldCategoryID,
+                oldUnit,
+                oldDescription,
+                oldMinStock
+            },
+            newData: { id, ...updateProduct }
+        })
+
         return msgSuccess(res, 200, `Product updated successfully`, { id, ...updateProduct })
     } catch (error) {
+
+        logger.error({
+            status: false,
+            action: "UPDATE_PRODUCT",
+            message: error.message,
+        })
+
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }
@@ -191,8 +239,22 @@ export const deleteProduct = async (req, res, id) => {
         // if (relatedStockTransfer.length > 0) return msgError(res, 400, "Cannot delete product: still referenced in stock transfers")
 
         await db.delete(products).where(eq(products.id, id))
+
+        logger.info({
+            status: true,
+            action: "DELETE_PRODUCT",
+            id
+        })
+
         return msgSuccess(res, 200, `Product deleted successfully`, { id })
     } catch (error) {
+
+        logger.error({
+            status: false,
+            action: "DELETE_PRODUCT",
+            message: error.message,
+        })
+
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }
