@@ -12,7 +12,7 @@ export const msgError = (res, code, message, e) => {
         success: false,
         message,
         error: errorMap[code] ?? "ERROR_UNKOWN",
-        e: process.env.NODE_ENV !== "production" && e
+        e: process.env.NODE_ENV !== "production" ? e : undefined
     }))
 }
 
@@ -21,7 +21,7 @@ export const msgSuccess = (res, code, message, data) => {
     res.end(JSON.stringify({
         success: true,
         message,
-        data: process.env.NODE_ENV !== "production" && data
+        data: process.env.NODE_ENV !== "production" ? data : undefined
     }))
 }
 
