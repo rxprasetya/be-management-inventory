@@ -1,7 +1,7 @@
 import db from "../../config/db.js"
-import { warehouses, stockIn, products, stockLevels } from "../../schema.js"
+import { warehouses, stockIn, products, stockLevels, stockOut } from "../../schema.js"
 import { msgError, msgSuccess, parseBody } from "../../utils/helper.js"
-import { and, desc, eq, ne, sql } from "drizzle-orm"
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm"
 import { v4 as UUID } from "uuid"
 import { stockInValidator } from "../../validators/index.js"
 import logger from "../../logger/index.js"
@@ -258,7 +258,7 @@ export const updateStockIn = async (req, res, id) => {
 
 export const deleteStockIn = async (req, res, id) => {
     try {
-        const [stock] = await db
+        const [stock_in] = await db
             .select({
                 // id: stockIn.id,
                 productID: stockIn.productID,
@@ -269,7 +269,7 @@ export const deleteStockIn = async (req, res, id) => {
             .where(eq(stockIn.id, id))
             .limit(1)
 
-        if (!stock) return msgError(res, 404, "Stock not found")
+        if (!stock_in) return msgError(res, 404, "Stock not found")
 
         await db.transaction(async (tx) => {
 
@@ -278,25 +278,25 @@ export const deleteStockIn = async (req, res, id) => {
                 .from(stockLevels)
                 .where(
                     and(
-                        eq(stockLevels.productID, stock.productID),
-                        eq(stockLevels.warehouseID, stock.warehouseID)
+                        eq(stockLevels.productID, stock_in.productID),
+                        eq(stockLevels.warehouseID, stock_in.warehouseID)
                     )
                 )
                 .limit(1)
 
             if (!stockLevel) throw new Error("Stock not found")
 
-            if (stockLevel.quantity < stock.quantity) throw new Error("Insufficient stock")
+            if (stockLevel.quantity < stock_in.quantity) throw new Error("Insufficient stock")
 
             await tx
                 .update(stockLevels)
                 .set({
-                    quantity: sql`${stockLevels.quantity} - ${stock.quantity}`
+                    quantity: sql`${stockLevels.quantity} - ${stock_in.quantity}`
                 })
                 .where(
                     and(
-                        eq(stockLevels.productID, stock.productID),
-                        eq(stockLevels.warehouseID, stock.warehouseID),
+                        eq(stockLevels.productID, stock_in.productID),
+                        eq(stockLevels.warehouseID, stock_in.warehouseID),
                     )
                 )
 
@@ -319,6 +319,30 @@ export const deleteStockIn = async (req, res, id) => {
             message: error.message,
         })
 
+        return msgError(res, 500, `Internal Server Error`, error)
+    }
+}
+
+export const getStockInWithoutStockOut = async (req, res) => {
+    try {
+        const StockInShowUpdate = await db
+            .select({ id: stockIn.id })
+            .from(stockIn)
+            .leftJoin(stockOut,
+                and(
+                    eq(stockIn.productID, stockOut.productID),
+                    eq(stockIn.warehouseID, stockOut.warehouseID),
+                )
+            )
+            .where(
+                and(
+                    isNull(stockOut.productID),
+                    isNull(stockOut.warehouseID),
+                )
+            )
+
+        return msgSuccess(res, 200, "Stock retrieved successfully", StockInShowUpdate)
+    } catch (error) {
         return msgError(res, 500, `Internal Server Error`, error)
     }
 }

@@ -1,4 +1,4 @@
-import { createStockIn, deleteStockIn, getStockIn, getStockInById, updateStockIn } from "../../controllers/stock/stockInController.js"
+import { createStockIn, deleteStockIn, getStockIn, getStockInById, getStockInWithoutStockOut, updateStockIn } from "../../controllers/stock/stockInController.js"
 import { authMiddleware } from "../../middleware/authMiddleware.js"
 
 export const StockInRouter = async (req, res) => {
@@ -9,6 +9,12 @@ export const StockInRouter = async (req, res) => {
         const allowed = await authMiddleware(req, res)
         if (!allowed) return
         return getStockIn(req, res)
+    }
+
+    if ((url === "/api/v1/stock-in/available" || url === "/api/v1/stock-in/available/") && method === "GET") {
+        const allowed = await authMiddleware(req, res)
+        if (!allowed) return
+        return getStockInWithoutStockOut(req, res)
     }
 
     if (url.startsWith("/api/v1/stock-in/") && method === "GET") {
